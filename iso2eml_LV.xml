@@ -1,0 +1,706 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="1.0" 
+    xmlns:xsl="http://www.w3.org/1999/XSL/Transform" 
+    xmlns:eml="https://eml.ecoinformatics.org/eml-2.2.0" 
+    xmlns:stmml="http://www.xml-cml.org/schema/stmml-1.2" 
+    xmlns:gmd="http://www.isotc211.org/2005/gmd" 
+    xmlns:gco="http://www.isotc211.org/2005/gco"
+    xmlns:gml="http://www.opengis.net/gml/3.2"
+    xmlns:gmx="http://www.isotc211.org/2005/gmx"
+    xmlns:xlink="http://www.w3.org/1999/xlink"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
+    
+    <xsl:output method="xml" indent="yes"/>
+    <xsl:strip-space elements="*" />
+    <xsl:template match="/gmd:MD_Metadata">
+        <eml:eml>
+            <xsl:attribute name="xsi:schemaLocation">https://eml.ecoinformatics.org/eml-2.2.0</xsl:attribute>
+            <xsl:attribute name="packageId"><xsl:value-of select="concat('https://metadatacatalogue.lifewatch.eu/srv/eng/catalog.search#/metadata/', normalize-space(gmd:fileIdentifier/gco:CharacterString))"/></xsl:attribute>
+            <xsl:attribute name="system"><xsl:value-of select="'https://metadatacatalogue.lifewatch.eu'"/></xsl:attribute>            
+            <xsl:attribute name="scope"><xsl:value-of select="'system'"/></xsl:attribute>
+            <dataset>
+                <!-- Alternate Identifier -->
+                <xsl:for-each select="gmd:fileIdentifier/gco:CharacterString">
+                    <alternateIdentifier><xsl:value-of select="normalize-space(.)"/></alternateIdentifier>
+                </xsl:for-each> 
+                <!-- Title -->
+                <xsl:for-each select="gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString">
+                    <title><xsl:value-of select="normalize-space(.)"/></title>
+                </xsl:for-each>
+                
+                <!-- Keywords -->
+                <xsl:if test="gmd:identificationInfo/gmd:MD_DataIdentification/gmd:descriptiveKeywords != ''">
+                    <xsl:call-template name="keywords">
+                        <xsl:with-param name="keys" select="gmd:identificationInfo/gmd:MD_DataIdentification/gmd:descriptiveKeywords" />
+                    </xsl:call-template>
+                </xsl:if>
+                
+                <!-- Creators -->
+                <xsl:call-template name="creators">
+                    <xsl:with-param name="doc" select="." />
+                </xsl:call-template>
+                
+                <!-- Publisher -->
+                <xsl:call-template name="publishers">
+                    <xsl:with-param name="doc" select="." />
+                </xsl:call-template>
+                
+                <!-- Additional parties -->
+                <xsl:call-template name="additional-parties">
+                    <xsl:with-param name="doc" select="." />
+                </xsl:call-template>
+                
+                <!-- Contacts -->
+                <xsl:call-template name="contacts">
+                    <xsl:with-param name="doc" select="." />
+                </xsl:call-template>
+                            
+                <!-- PubDate if available -->
+                <xsl:if test="gmd:dateStamp/gco:DateTime != ''">
+                    <pubDate>
+                        <xsl:choose>
+                            <xsl:when test="contains(gmd:dateStamp/gco:DateTime, 'T')">
+                                <xsl:value-of select="normalize-space(substring-before(gmd:dateStamp/gco:DateTime, 'T'))" />
+                            </xsl:when>
+                            <xsl:otherwise>
+                                <xsl:value-of select="normalize-space(gmd:dateStamp/gco:DateTime)" />
+                            </xsl:otherwise>
+                        </xsl:choose>
+                    </pubDate>
+                </xsl:if>
+                <xsl:if test="gmd:dateStamp/gco:Date != ''">
+                    <pubDate>
+                        <xsl:value-of select="normalize-space(gmd:dateStamp/gco:Date)" />
+                    </pubDate>
+                </xsl:if>
+                
+                
+                <!-- Abstract -->
+                <abstract>
+                    <para><xsl:value-of select="normalize-space(gmd:identificationInfo/gmd:MD_DataIdentification/gmd:abstract/gco:CharacterString)" /></para>
+                </abstract>
+                
+                <!-- Language --> 
+                <xsl:if test="gmd:language/gco:CharacterString != ''">
+                    <language><xsl:value-of select="normalize-space(gmd:language/gco:CharacterString)" /></language>           
+                </xsl:if>
+                
+                <!-- If the language is in a codelist -->
+                <xsl:if test="gmd:language/gmd:LanguageCode/@codeListValue != ''">
+                    <language><xsl:value-of select="normalize-space(gmd:language/gmd:LanguageCode/@codeListValue)"/></language>
+                </xsl:if>
+                
+                
+                <!-- Add intellectual rights  -->
+                <xsl:if test="gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:useLimitation/gco:CharacterString != ''">
+                    <intellectualRights>
+                        <para>
+                            <xsl:value-of select="normalize-space(gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:useLimitation/gco:CharacterString)" />
+                        </para>
+                    </intellectualRights>
+                </xsl:if>
+                
+                <!-- License -->
+                <xsl:choose>
+                    <xsl:when test='gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints[gmd:accessConstraints/gmd:MD_RestrictionCode[@codeListValue="license"]] != "" '>
+                        <licensed>
+                            <licenseName>
+                               <xsl:value-of select="normalize-space(gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:otherConstraints)" />
+                            </licenseName>
+                            <url><xsl:value-of select="normalize-space(gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:otherConstraints/gmx:Anchor/@xlink:href)"/></url>
+                        </licensed>
+                    </xsl:when>                    
+                    <xsl:when test='gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints[gmd:accessConstraints/gmd:MD_RestrictionCode[@codeListValue="otherRestrictions"]] != "" '>
+                        <licensed>
+                            <licenseName>
+                               <xsl:value-of select="normalize-space(gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:otherConstraints)" />
+                            </licenseName>
+                            <url><xsl:value-of select="normalize-space(gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:otherConstraints/gmx:Anchor/@xlink:href)"/></url>
+                        </licensed>
+                    </xsl:when> 
+                    <xsl:when test='gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints[gmd:useConstraints/gmd:MD_RestrictionCode[@codeListValue="license"]] != "" '>
+                        <licensed>
+                            <licenseName>
+                               <xsl:value-of select="normalize-space(gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:otherConstraints)" />
+                            </licenseName>
+                            <url><xsl:value-of select="normalize-space(gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:otherConstraints/gmx:Anchor/@xlink:href)"/></url>
+                        </licensed>
+                    </xsl:when>                    
+                    <xsl:when test='gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints[gmd:useConstraints/gmd:MD_RestrictionCode[@codeListValue="otherRestrictions"]] != "" '>
+                        <licensed>
+                            <licenseName>
+                               <xsl:value-of select="normalize-space(gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:otherConstraints)" />
+                            </licenseName>
+                            <url><xsl:value-of select="normalize-space(gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:otherConstraints/gmx:Anchor/@xlink:href)"/></url>
+                        </licensed>
+                    </xsl:when> 
+                    <xsl:otherwise>
+                        <licensed>
+                            <licenseName/>
+                            <url/>
+                            <identifier/>
+                        </licensed>
+                    </xsl:otherwise>
+                </xsl:choose>
+     
+                <!-- Online Distribution -->
+                <xsl:if test="gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource/gmd:linkage/gmd:URL != ''">
+                    <distribution>
+                        <online>
+                            <onlineDescription>Access to dataset</onlineDescription>
+                            <url>
+                                <xsl:value-of select="gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource/gmd:linkage/gmd:URL" />
+                            </url>
+                        </online>
+                    </distribution>           
+                </xsl:if>
+                                
+                
+                <!-- Coverage -->
+                <xsl:call-template name="coverage" />
+                
+                <!-- Project   -->
+                <xsl:call-template name="project">
+                    <xsl:with-param name="doc" select="." />
+                </xsl:call-template>
+                
+                
+                <!-- Methods   -->
+                <xsl:call-template name="methods">
+                    <xsl:with-param name="doc" select="." />
+                </xsl:call-template>
+    
+            </dataset>  
+        </eml:eml>
+    </xsl:template>
+    
+    <!-- Process Keywords and associated thesaurus entries -->
+    <xsl:template name="keywords">
+        <xsl:param name = "keys" />
+        <xsl:for-each select="$keys">
+            <xsl:variable name="kw-type" select="./gmd:MD_Keywords/gmd:type/gmd:MD_KeywordTypeCode/@codeListValue" />
+            <keywordSet>    
+                <xsl:if test="./gmd:MD_Keywords/gmd:keyword/gmx:Anchor != ''">
+                    <xsl:for-each select="./gmd:MD_Keywords/gmd:keyword/gmx:Anchor">
+                        <keyword>
+                            <xsl:value-of select="normalize-space(.)" />
+                        </keyword>
+                    </xsl:for-each> 
+                </xsl:if>
+                <xsl:if test="./gmd:MD_Keywords/gmd:keyword/gco:CharacterString != ''">
+                    <xsl:for-each select="./gmd:MD_Keywords/gmd:keyword/gco:CharacterString">
+                        <keyword>
+                            <xsl:value-of select="normalize-space(.)" />
+                        </keyword>
+                    </xsl:for-each>
+                </xsl:if>
+                <xsl:if test="./gmd:MD_Keywords/gmd:thesaurusName != ''">
+                    <xsl:choose>
+                        <xsl:when test="./gmd:MD_Keywords/gmd:thesaurusName/gmd:CI_Citation/gmd:title/gmx:Anchor != ''">
+                            <keywordThesaurus>
+                                <xsl:value-of select="normalize-space(./gmd:MD_Keywords/gmd:thesaurusName/gmd:CI_Citation/gmd:title/gmx:Anchor)" />
+                            </keywordThesaurus>
+                        </xsl:when>
+                        <xsl:when test="./gmd:MD_Keywords/gmd:thesaurusName/gmd:CI_Citation/gmd:collectiveTitle != ''">
+                            <keywordThesaurus>
+                                <xsl:value-of select="normalize-space(./gmd:MD_Keywords/gmd:thesaurusName/gmd:CI_Citation/gmd:collectiveTitle/gco:CharacterString)" />
+                            </keywordThesaurus>
+                        </xsl:when>
+                        <xsl:otherwise>
+                            <keywordThesaurus>
+                                <xsl:value-of select="normalize-space(./gmd:MD_Keywords/gmd:thesaurusName/gmd:CI_Citation/gmd:title/gco:CharacterString)" />
+                            </keywordThesaurus>
+                        </xsl:otherwise>
+                    </xsl:choose>
+                </xsl:if>
+            </keywordSet>
+        </xsl:for-each>
+    </xsl:template>
+    
+    <!-- Handle eml-party fields -->    
+    <xsl:template name="party">
+        <xsl:param name = "party" />
+        <xsl:apply-templates />   
+        <xsl:if test="$party//gmd:CI_Address/gmd:electronicMailAddress/gco:CharacterString!=''">
+            <electronicMailAddress><xsl:value-of select="normalize-space($party//gmd:CI_Address/gmd:electronicMailAddress/gco:CharacterString)"/></electronicMailAddress>
+        </xsl:if>
+        <xsl:if test="$party//gmd:onlineResource/gmd:CI_OnlineResource/gmd:linkage/gmd:URL!=''">
+            <onlineUrl><xsl:value-of select="normalize-space($party//gmd:onlineResource/gmd:CI_OnlineResource/gmd:linkage/gmd:URL)"/></onlineUrl>
+        </xsl:if>
+    </xsl:template>
+    
+    <!-- IndividualName -->
+    <xsl:template match="gmd:individualName">
+        <individualName>
+            <givenName>
+                 <xsl:value-of select="substring-before(normalize-space(gco:CharacterString), ' ')"/>
+            </givenName>
+            <surName>
+                <xsl:value-of select="substring-after(normalize-space(gco:CharacterString), ' ')"/>
+            </surName>
+        </individualName>
+    </xsl:template>
+
+    <!-- OrganizationName -->
+    <xsl:template match="gmd:organisationName">
+        <organizationName><xsl:value-of select="normalize-space(gco:CharacterString)"/></organizationName>
+    </xsl:template>
+
+    <!-- PositionName -->
+    <xsl:template match="gmd:positionName">
+        <positionName><xsl:value-of select="normalize-space(gco:CharacterString)"/></positionName>
+    </xsl:template>
+
+    <!-- Email and onlineResource are all noops so they can be reordered correctly -->
+    <xsl:template match="gmd:electronicMailAddress" />
+    <xsl:template match="gmd:onlineResource" />
+    <xsl:template match="gmd:role" />
+    
+    <!-- Creator -->
+    <xsl:template name="creators">
+        <xsl:param name = "doc" />
+        <xsl:choose>
+            <!-- First add any authors from the gmd:citation -->
+            <xsl:when test='$doc/gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:citedResponsibleParty/gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue="author"]]!=""'>
+                <xsl:for-each select='gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:citedResponsibleParty/gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue="author"]]'>
+                    <creator>
+                        <xsl:call-template name="party">
+                            <xsl:with-param name="party" select = "." />
+                        </xsl:call-template>
+                    </creator>
+                </xsl:for-each>
+            </xsl:when>
+            <!-- Alternatively, add authors from anywhere in the document -->
+            <xsl:when test='$doc//gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue="author"]] != "" '>
+                <xsl:for-each select='$doc//gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue="author"]]'>
+                    <creator>
+                        <xsl:call-template name="party">
+                            <xsl:with-param name="party" select = "." />
+                        </xsl:call-template>
+                    </creator>
+                </xsl:for-each>
+            </xsl:when>
+        </xsl:choose>
+        <xsl:choose>
+            <!-- Alternatively, add originator from the citation in the document -->
+            <xsl:when test='$doc/gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:citedResponsibleParty/gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue="originator"]] != "" '>
+                <xsl:for-each select='$doc/gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:citedResponsibleParty/gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue="originator"]]'>
+                    <creator>
+                        <xsl:call-template name="party">
+                            <xsl:with-param name="party" select = "." />
+                        </xsl:call-template>
+                    </creator>
+                </xsl:for-each>
+            </xsl:when>
+            <!-- Alternatively, add originator from anywhere in the document -->
+            <xsl:when test='$doc//gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue="originator"]] != "" '>
+                <xsl:for-each select='$doc//gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue="originator"]]'>
+                    <creator>
+                        <xsl:call-template name="party">
+                            <xsl:with-param name="party" select = "." />
+                        </xsl:call-template>
+                    </creator>
+                </xsl:for-each>
+            </xsl:when>
+        </xsl:choose>
+    </xsl:template>
+    
+    <!-- Contacts -->
+    <xsl:template name="contacts">
+        <xsl:param name = "doc" />
+        <xsl:choose>
+            <!-- Add contacts from the citation in the document -->
+            <xsl:when test='$doc/gmd:identificationInfo/gmd:MD_DataIdentification/gmd:pointOfContact/gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue="pointOfContact"]]!=""'>
+                <xsl:for-each select='gmd:identificationInfo/gmd:MD_DataIdentification/gmd:pointOfContact/gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue="pointOfContact"]]'>
+                    <contact>
+                        <xsl:call-template name="party">
+                            <xsl:with-param name="party" select = "." />
+                        </xsl:call-template>
+                    </contact>
+                </xsl:for-each>
+            </xsl:when>
+            <!-- Alternatively, add contacts from anywhere in the document -->
+            <xsl:when test='$doc//gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue="pointOfContact"]] != "" '>
+                <xsl:for-each select='$doc//gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue="pointOfContact"]]'>
+                    <contact>
+                        <xsl:call-template name="party">
+                            <xsl:with-param name="party" select = "." />
+                        </xsl:call-template>
+                    </contact>
+                </xsl:for-each>
+            </xsl:when>
+        </xsl:choose>
+    </xsl:template>
+    
+    
+    <!-- Add publishers
+    First, check to see if publishers are listed in the gmd:citation, and if so, use them;
+    If not, then search the whole document and use any found.  This avoids duplication.
+    -->
+    <xsl:template name="publishers">
+        <xsl:param name = "doc" />
+        <xsl:choose>
+            <xsl:when test='$doc/gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:citedResponsibleParty/gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue="publisher"]]!=""'>
+                <xsl:for-each select='gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:citedResponsibleParty/gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue="publisher"]]'>
+                    <metadataProvider>
+                        <xsl:call-template name="party">
+                            <xsl:with-param name="party" select = "." />
+                        </xsl:call-template>
+                    </metadataProvider>
+                </xsl:for-each>
+            </xsl:when>
+            <xsl:otherwise>
+                <xsl:for-each select='$doc//gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue="publisher"]]'>
+                    <metadataProvider>
+                        <xsl:call-template name="party">
+                            <xsl:with-param name="party" select = "." />
+                        </xsl:call-template>
+                    </metadataProvider>
+                </xsl:for-each>
+            </xsl:otherwise>
+        </xsl:choose>
+    </xsl:template>
+    
+    
+    <!-- AssociatedParty: principalInvestigator
+    First, check to see if principalInvestigators are listed in the gmd:citation, and if so, use them;
+    If not, then search the whole document and use any found.  This avoids duplication.
+    -->
+    <xsl:template name="additional-parties">
+        <xsl:param name = "doc" />
+        <!-- principalInvestigators -->
+        <xsl:choose>
+            <xsl:when test='$doc/gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:citedResponsibleParty/gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue="principalInvestigator"]]!=""'>
+                <xsl:for-each select='gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:citedResponsibleParty/gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue="principalInvestigator"]]'>
+                    <associatedParty>
+                        <xsl:call-template name="party">
+                            <xsl:with-param name="party" select = "." />
+                        </xsl:call-template>
+                        <positionName>Principal Investigator</positionName>
+                    </associatedParty>
+                </xsl:for-each>
+            </xsl:when>
+            <xsl:otherwise>
+                <xsl:for-each select='$doc//gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue="principalInvestigator"]]'>
+                    <associatedParty>
+                        <xsl:call-template name="party">
+                            <xsl:with-param name="party" select = "." />
+                        </xsl:call-template>
+                        <positionName>Principal Investigator</positionName>
+                    </associatedParty>
+                </xsl:for-each>
+            </xsl:otherwise>
+        </xsl:choose>
+
+        <!-- associatedParties -->
+        <xsl:choose>
+            <xsl:when test='$doc/gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:citedResponsibleParty/gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue="associatedParty"]]!=""'>
+                <xsl:for-each select='gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:citedResponsibleParty/gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue="associatedParty"]]'>
+                    <associatedParty>
+                        <xsl:call-template name="party">
+                            <xsl:with-param name="party" select = "." />
+                        </xsl:call-template>
+                        <positionName>Associated Party</positionName>
+                    </associatedParty>
+                </xsl:for-each>
+            </xsl:when>
+            <xsl:otherwise>
+                <xsl:for-each select='$doc//gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue="associatedParty"]]'>
+                    <associatedParty>
+                        <xsl:call-template name="party">
+                            <xsl:with-param name="party" select = "." />
+                        </xsl:call-template>
+                        <positionName>Associated Party</positionName>
+                    </associatedParty>
+                </xsl:for-each>
+            </xsl:otherwise>
+        </xsl:choose>
+    </xsl:template>
+    
+    
+    
+    <!-- Match any geographic or temporal coverage elements -->
+    <xsl:template name="coverage" match="gmd:identificationInfo/gmd:MD_DataIdentification/gmd:extent">
+    <!-- Add EML geographic and temporal coverages, if available -->
+        <!-- Add geographic coverages -->
+        <xsl:variable name="bboxCount" select="count(.//gmd:EX_Extent/gmd:geographicElement/gmd:EX_GeographicBoundingBox)" />
+        <xsl:variable name="temporalCount" select="count(.//gmd:EX_Extent/gmd:temporalElement)" />
+        <xsl:variable name="descriptionCount" select="count(.//gmd:EX_Extent/gmd:description)" />
+        <xsl:variable name="exDescCount" select="count(.//gmd:EX_Extent/gmd:geographicElement/gmd:EX_GeographicDescription)" />
+        <xsl:if test="$temporalCount + $bboxCount &gt; 0">
+            <coverage>
+                <xsl:choose>
+                    <xsl:when test="($descriptionCount + $exDescCount) &gt;= $bboxCount">
+                        <xsl:variable name="descriptions" >
+                            <xsl:if test="//gmd:EX_Extent/gmd:description">
+                                <xsl:for-each select=".//gmd:EX_Extent">
+                                    <xsl:copy-of select="gmd:description" />
+                                </xsl:for-each>                     
+                                <xsl:value-of select="'. '" /> 
+                            </xsl:if>
+                        </xsl:variable>
+
+                        <xsl:variable name="codeDescriptions" >
+                            <xsl:for-each select=".//gmd:EX_Extent/gmd:geographicElement/gmd:EX_GeographicDescription">
+                                <xsl:value-of select="gmd:geographicIdentifier/gmd:MD_Identifier/gmd:code/gco:CharacterString" />
+                                    <xsl:if test="count(//gmd:EX_GeographicDescription) &gt; 1">
+                                        <xsl:value-of select="', '" />
+                                    </xsl:if>
+                            </xsl:for-each>
+                        </xsl:variable>
+
+                        <xsl:apply-templates select=".//gmd:EX_Extent/gmd:geographicElement/gmd:EX_GeographicBoundingBox">
+                            <xsl:with-param name="allDescriptions" select="concat($descriptions, $codeDescriptions)" />
+                        </xsl:apply-templates> 
+                    </xsl:when>
+                    <xsl:otherwise>
+                        <xsl:comment>No geographic description provided</xsl:comment>
+                        <xsl:apply-templates select=".//gmd:EX_Extent/gmd:geographicElement/gmd:EX_GeographicBoundingBox">
+                            <xsl:with-param name="allDescriptions" select="'No geographic description provided.'" />
+                        </xsl:apply-templates> 
+                    </xsl:otherwise>                
+                </xsl:choose>
+
+                <!-- Add temporal coverages -->
+                <xsl:apply-templates select=".//gmd:EX_Extent/gmd:temporalElement" />                
+            </coverage>
+        </xsl:if>
+    </xsl:template>
+
+
+    <!-- Handle geographic bounding boxes -->
+    <xsl:template match="gmd:EX_Extent/gmd:geographicElement/gmd:EX_GeographicBoundingBox">
+        <xsl:param name="allDescriptions" />
+        <xsl:comment>Geographic coverage</xsl:comment>
+        <!-- Handle geographic description -->
+        <xsl:choose>
+            <xsl:when test="$allDescriptions != ''">
+                <geographicCoverage>
+                    <geographicDescription>
+                        <xsl:value-of select="$allDescriptions" />
+                    </geographicDescription>
+                    <xsl:apply-templates select="../gmd:geographicElement/gmd:EX_GeographicBoundingBox" />
+                    <!-- Add bounding coordinates -->
+                    <boundingCoordinates>
+                        <westBoundingCoordinate>
+                            <xsl:value-of select="normalize-space(gmd:westBoundLongitude/gco:Decimal)" />
+                        </westBoundingCoordinate>
+                        <eastBoundingCoordinate>
+                            <xsl:value-of select="normalize-space(gmd:eastBoundLongitude/gco:Decimal)" />
+                        </eastBoundingCoordinate>
+                        <northBoundingCoordinate>
+                            <xsl:value-of select="normalize-space(gmd:northBoundLatitude/gco:Decimal)" />
+                        </northBoundingCoordinate>
+                        <southBoundingCoordinate>
+                            <xsl:value-of select="normalize-space(gmd:southBoundLatitude/gco:Decimal)" />
+                        </southBoundingCoordinate>
+                    </boundingCoordinates>
+                </geographicCoverage>
+            </xsl:when>
+            <xsl:otherwise>
+                <!-- Make up a description from the bounding box -->
+                <xsl:if test=".//gmd:EX_GeographicBoundingBox">
+                    <geographicCoverage>
+                        <geographicDescription>
+                            <xsl:text>This research took place in the area bounded by: </xsl:text>
+                            <xsl:value-of select="normalize-space(gmd:EX_GeographicBoundingBox/gmd:westBoundLongitude/gco:Decimal)" />
+                            <xsl:text> West,</xsl:text>
+                            <xsl:value-of select="normalize-space(gmd:EX_GeographicBoundingBox/gmd:eastBoundLongitude/gco:Decimal)" />
+                            <xsl:text> East,</xsl:text>
+                            <xsl:value-of select="normalize-space(gmd:EX_GeographicBoundingBox/gmd:northBoundLatitude/gco:Decimal)" />
+                            <xsl:text> North,</xsl:text>
+                            <xsl:value-of select="normalize-space(gmd:EX_GeographicBoundingBox/gmd:southBoundLatitude/gco:Decimal)" />
+                            <xsl:text> South.</xsl:text>
+                        </geographicDescription>
+                        <!-- Add bounding coordinates -->
+                        <boundingCoordinates>
+                            <westBoundingCoordinate>
+                                <xsl:value-of select="normalize-space(gmd:westBoundLongitude/gco:Decimal)" />
+                            </westBoundingCoordinate>
+                            <eastBoundingCoordinate>
+                                <xsl:value-of select="normalize-space(gmd:eastBoundLongitude/gco:Decimal)" />
+                            </eastBoundingCoordinate>
+                            <northBoundingCoordinate>
+                                <xsl:value-of select="normalize-space(gmd:northBoundLatitude/gco:Decimal)" />
+                            </northBoundingCoordinate>
+                            <southBoundingCoordinate>
+                                <xsl:value-of select="normalize-space(gmd:southBoundLatitude/gco:Decimal)" />
+                            </southBoundingCoordinate>
+                        </boundingCoordinates>
+                    </geographicCoverage>
+                </xsl:if>
+            </xsl:otherwise>
+        </xsl:choose>		
+    </xsl:template>
+    
+    <!-- Handle temporal coverage elements -->    
+    <xsl:template name="temporalCoverage" match="gmd:EX_Extent/gmd:temporalElement">
+        <xsl:comment>Temporal coverage</xsl:comment>
+        <xsl:choose>
+            <xsl:when test="..//gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent/gml:TimePeriod">
+                <!-- We have a period, use rangeOfDates -->
+                <temporalCoverage>
+                    <rangeOfDates>
+                        <beginDate>
+                            <xsl:choose>
+                                <xsl:when test="contains(gmd:EX_TemporalExtent/gmd:extent/gml:TimePeriod/gml:beginPosition, 'T')">
+                                    <calendarDate>
+                                        <xsl:value-of select="normalize-space(substring-before(gmd:EX_TemporalExtent/gmd:extent/gml:TimePeriod/gml:beginPosition, 'T'))" />
+                                    </calendarDate>
+                                    <time>
+                                        <xsl:value-of select="normalize-space(substring-after(gmd:EX_TemporalExtent/gmd:extent/gml:TimePeriod/gml:beginPosition, 'T'))" />		
+                                    </time>								
+                                </xsl:when>
+                                <xsl:otherwise>
+                                    <calendarDate>
+                                        <xsl:value-of select="normalize-space(gmd:EX_TemporalExtent/gmd:extent/gml:TimePeriod/gml:beginPosition)" />
+                                    </calendarDate>								
+                                </xsl:otherwise>
+                            </xsl:choose>
+                        </beginDate>
+                        <endDate>
+                            <xsl:choose>
+                                <xsl:when test="contains(gmd:EX_TemporalExtent/gmd:extent/gml:TimePeriod/gml:endPosition, 'T')">
+                                    <calendarDate>
+                                        <xsl:value-of select="normalize-space(substring-before(gmd:EX_TemporalExtent/gmd:extent/gml:TimePeriod/gml:endPosition, 'T'))" />
+                                    </calendarDate>
+                                    <time>
+                                        <xsl:value-of select="normalize-space(substring-after(gmd:EX_TemporalExtent/gmd:extent/gml:TimePeriod/gml:endPosition, 'T'))" />									
+                                    </time>								
+                                </xsl:when>
+                                <xsl:otherwise>
+                                    <calendarDate>
+                                        <xsl:value-of select="normalize-space(gmd:EX_TemporalExtent/gmd:extent/gml:TimePeriod/gml:endPosition)" />
+                                    </calendarDate>								
+                                </xsl:otherwise>
+                            </xsl:choose>
+                        </endDate>
+                    </rangeOfDates>
+                </temporalCoverage>
+            </xsl:when>
+            <xsl:otherwise>
+                <!-- No time period, look for time instant -->
+                <xsl:if test="gmd:EX_TemporalExtent/gmd:extent/gml:TimeInstant">
+                    <temporalCoverage>
+                        <singleDateTime>
+                            <calendarDate>
+                                <xsl:value-of select="normalize-space(gmd:EX_TemporalExtent/gmd:extent/gml:TimeInstant/gml:timePosition)" />
+                            </calendarDate>
+                        </singleDateTime>
+                    </temporalCoverage>
+                </xsl:if>
+            </xsl:otherwise>
+        </xsl:choose>
+    </xsl:template>
+    
+    
+    <!-- Match any gmd:credit elements, and if they are present, add a project entry with funding fields -->
+    <xsl:template name="project">
+        <xsl:param name = "doc" />
+        <xsl:variable name="awardCount" select="count(./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:credit)" />
+        <!-- Add funding elements -->
+        <xsl:choose>
+            <xsl:when test="$awardCount &gt; 0">
+                <project>
+                    <!-- Add the project title -->
+                    <title><xsl:value-of select="normalize-space(./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:title[1]/gco:CharacterString)"/></title>
+                    <!-- Add the project abstract -->
+                    <xsl:if test='./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:abstract[1]/gco:CharacterString != ""'>
+                        <abstract><xsl:value-of select="normalize-space(./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:abstract[1]/gco:CharacterString)"/></abstract>
+                    </xsl:if>
+
+                    <!-- Add personnel from the PI list or the author list -->
+                    <xsl:choose>
+                        <!-- Select PIs from the citation -->
+                        <xsl:when test='$doc/gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:citedResponsibleParty/gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue="principalInvestigator" or @codeListValue="coPrincipalInvestigator" or @codeListValue="collaboratingPrincipalInvestigator"]]!=""'>
+                            <xsl:for-each select='gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:citedResponsibleParty/gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue="principalInvestigator" or @codeListValue="coPrincipalInvestigator" or @codeListValue="collaboratingPrincipalInvestigator"]]'>
+                                <personnel>
+                                    <xsl:call-template name="party">
+                                        <xsl:with-param name="party" select = "." />
+                                    </xsl:call-template>
+                                    <positionName>principalInvestigator</positionName>
+                                </personnel>
+                            </xsl:for-each>
+                        </xsl:when>
+                        <!-- Alternatively, select PIs from anywhere in the doc -->
+                        <xsl:when test='$doc//gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue="principalInvestigator" or @codeListValue="coPrincipalInvestigator" or @codeListValue="collaboratingPrincipalInvestigator"]] != ""'>
+                            <xsl:for-each select='$doc//gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue="principalInvestigator" or @codeListValue="coPrincipalInvestigator" or @codeListValue="collaboratingPrincipalInvestigator"]]'>
+                                <personnel>
+                                    <xsl:call-template name="party">
+                                        <xsl:with-param name="party" select = "." />
+                                    </xsl:call-template>
+                                    <positionName>principalInvestigator</positionName>
+                                </personnel>
+                            </xsl:for-each>
+                        </xsl:when>
+                        <!-- Otherwise, select the author anywhere in the document -->
+                        <xsl:otherwise>
+                            <xsl:for-each select='$doc//gmd:CI_ResponsibleParty[gmd:role/gmd:CI_RoleCode[@codeListValue="author"]]'>
+                                <personnel>
+                                    <xsl:call-template name="party">
+                                        <xsl:with-param name="party" select = "." />
+                                    </xsl:call-template>
+                                    <positionName>principalInvestigator</positionName>
+                                </personnel>
+                            </xsl:for-each>
+                        </xsl:otherwise>
+                    </xsl:choose>
+                    <!-- Add all of the funding from gmd:credit -->
+                    <funding>
+                        <xsl:for-each select="./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:credit">
+                            <para><xsl:value-of select="."/></para>
+                        </xsl:for-each>
+                    </funding>
+                </project>
+            </xsl:when>
+            <xsl:otherwise>
+                <project>
+                <title/>
+                <abstract/>
+                <personnel>
+                    <organizationName/>
+                    <individualName>
+                       <givenName/>
+                       <surName/>
+                    </individualName>
+                    <positionName/>
+                </personnel>                   
+            </project>
+            </xsl:otherwise>
+        </xsl:choose>
+    </xsl:template>
+    
+    
+    <!-- Match any <gmd:lineage> elements, and if they are present, add a method entry with the corresponding fields -->
+    <xsl:template name="methods">
+        <xsl:param name = "doc" />
+        <xsl:variable name="methodCount" select="count(./gmd:dataQualityInfo/gmd:DQ_DataQuality/gmd:lineage)" />
+        <xsl:if test="$methodCount &gt; 0">
+            <methods>
+                <xsl:variable name="methodStepCount" select="count(./gmd:dataQualityInfo/gmd:DQ_DataQuality/gmd:lineage/gmd:LI_Lineage/gmd:statement)" />
+                <xsl:if test="$methodStepCount &gt; 0">
+                    <xsl:for-each select="./gmd:dataQualityInfo/gmd:DQ_DataQuality/gmd:lineage/gmd:LI_Lineage/gmd:statement">
+                        <xsl:if test="./gco:CharacterString != ''">
+                            <methodStep>
+                                <description>
+                                    <para><xsl:value-of select="./gco:CharacterString"/></para>
+                                </description>
+                            </methodStep>
+                        </xsl:if>
+                    </xsl:for-each>
+                </xsl:if>
+                <xsl:variable name="sampling" select="count(./gmd:dataQualityInfo/gmd:DQ_DataQuality/gmd:lineage/gmd:LI_Lineage/gmd:source)" />
+                <xsl:if test="$sampling &gt; 0">
+                    <xsl:for-each select="./gmd:dataQualityInfo/gmd:DQ_DataQuality/gmd:lineage/gmd:LI_Lineage/gmd:source">
+                        <sampling>
+                            <description>
+                                <para><xsl:value-of select="."/></para>
+                            </description>
+                        </sampling>
+                    </xsl:for-each>
+                </xsl:if>
+            </methods>
+        </xsl:if>
+    </xsl:template>
+</xsl:stylesheet>
