@@ -146,14 +146,20 @@
      
                 <!-- Online Distribution -->
                 <xsl:if test="gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource/gmd:linkage/gmd:URL != ''">
-                    <distribution>
+                    <xsl:for-each select="gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource">
                         <online>
-                            <onlineDescription>Access to dataset</onlineDescription>
-                            <url>
-                                <xsl:value-of select="gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource/gmd:linkage/gmd:URL" />
-                            </url>
+                            <xsl:if test="./gmd:name != ''">
+                                <onlineDescription>
+                                    <xsl:value-of select="./gmd:name" />
+                                </onlineDescription>
+                            </xsl:if>
+                            <xsl:if test="./gmd:linkage/gmd:URL != ''">
+                                <url>
+                                    <xsl:value-of select="./gmd:linkage/gmd:URL" />
+                                </url>
+                            </xsl:if>    
                         </online>
-                    </distribution>           
+                    </xsl:for-each>
                 </xsl:if>
                                 
                 
