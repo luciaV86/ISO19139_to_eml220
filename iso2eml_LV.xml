@@ -146,20 +146,32 @@
      
                 <!-- Online Distribution -->
                 <xsl:if test="gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource/gmd:linkage/gmd:URL != ''">
-                    <xsl:for-each select="gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource">
-                        <online>
-                            <xsl:if test="./gmd:name != ''">
-                                <onlineDescription>
-                                    <xsl:value-of select="./gmd:name" />
-                                </onlineDescription>
-                            </xsl:if>
-                            <xsl:if test="./gmd:linkage/gmd:URL != ''">
-                                <url>
-                                    <xsl:value-of select="./gmd:linkage/gmd:URL" />
-                                </url>
-                            </xsl:if>    
-                        </online>
-                    </xsl:for-each>
+                    <distribution>
+                        <xsl:for-each select="gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource">
+                            <online>
+                                <xsl:if test="./gmd:name != ''">
+                                    <xsl:variable name="desc" select="./gmd:name"/>
+                                    <xsl:choose>
+                                        <xsl:when test="contains($desc, '|')">
+                                            <onlineDescription>
+                                                <xsl:value-of select="translate($desc, '|', '-')"/>
+                                            </onlineDescription>
+                                        </xsl:when>
+                                        <xsl:otherwise>
+                                            <onlineDescription>
+                                                <xsl:value-of select="./gmd:name" />
+                                            </onlineDescription>
+                                        </xsl:otherwise>
+                                    </xsl:choose>
+                                </xsl:if>
+                                <xsl:if test="./gmd:linkage/gmd:URL != ''">
+                                    <url>
+                                        <xsl:value-of select="./gmd:linkage/gmd:URL" />
+                                    </url>
+                                </xsl:if>    
+                            </online>
+                        </xsl:for-each>
+                    </distribution>
                 </xsl:if>
                                 
                 
